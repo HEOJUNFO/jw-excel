@@ -25,6 +25,7 @@ export const APPLY_COLS = {
   interval: ['횟수', 'Interval'],
   wish1: ['희망시간1', '희망시간 1', '희망시간'],
   wish2: ['희망시간2', '희망시간 2'],
+  course: ['과정', '과정선택', '과정명'],
   status: ['상태'],
 };
 
@@ -94,13 +95,23 @@ export function rangeWithin(inner, outer) {
   return inner.start >= outer.start && inner.end <= outer.end;
 }
 
-// 언어 동일 취급 그룹 (옵션). 예: 영어(원어민) ≈ 영어(북미)
-const LANG_ALIASES = [['영어(원어민)', '영어(북미)', '영어(미국)', '영어(캐나다)']];
-function langKey(v, useAlias) {
+// 언어 동일 취급 그룹: 영어(원어민) = 영어(북미) = 영어(교포) 등. 영어(필리핀)은 별도.
+const LANG_ALIASES = [['영어(원어민)', '영어(북미)', '영어(교포)', '영어(미국)', '영어(캐나다)', '영어(영국)', '영어(호주)']];
+function langKey(v) {
   const n = norm(v);
-  if (!useAlias) return n;
   for (const g of LANG_ALIASES) if (g.map(norm).includes(n)) return norm(g[0]);
   return n;
+}
+
+// 수강신청 언어 컬럼이 "제2외국어"(또는 비어 있음)이면 실제 언어는 '과정' 컬럼에 있다.
+const isSecondLang = (lang) => /제\s*2\s*외국어|기타\s*외국어/.test(norm(lang)) || norm(lang) === '';
+
+// 배정 언어("스페인어") vs 신청 과정("스페인어 과정", "스페인어(원어민)")을 느슨하게 비교
+function courseMatches(assignLang, course) {
+  const a = norm(assignLang).replace(/\(.*?\)|과정/g, '');
+  const c = norm(course).replace(/\(.*?\)|과정/g, '');
+  if (!a || !c) return false;
+  return a === c || c.includes(a) || a.includes(c);
 }
 
 function intervalKey(v) {
@@ -149,9 +160,8 @@ function matchApply(a, idx) {
 /**
  * @param assignRows 배정검토 시트 2차원 배열
  * @param applyRows 수강신청 시트 2차원 배열
- * @param opts { langAlias: boolean }
  */
-export function compare(assignRows, applyRows, opts = {}) {
+export function compare(assignRows, applyRows) {
   const assign = toRecords(assignRows, ASSIGN_COLS);
   const apply = toRecords(applyRows, APPLY_COLS);
   const idx = buildIndex(apply.records);
@@ -205,7 +215,13 @@ export function compare(assignRows, applyRows, opts = {}) {
     set('mode', am, bm, norm(am) !== '' && norm(am) === norm(bm));
 
     const al = pick(a, ASSIGN_COLS.lang), bl = pick(b, APPLY_COLS.lang);
-    set('lang', al, bl, norm(al) !== '' && langKey(al, opts.langAlias) === langKey(bl, opts.langAlias));
+    if (isSecondLang(bl)) {
+      // 제2외국어: 신청 리스트엔 언어가 안 나오므로 '과정' 컬럼으로 판단
+      const bc = pick(b, APPLY_COLS.course);
+      set('lang', al, bc ? `${bc}${bl ? ` (${bl})` : ''}` : bl, norm(al) !== '' && courseMatches(al, bc), '과정으로 비교');
+    } else {
+      set('lang', al, bl, norm(al) !== '' && langKey(al) === langKey(bl));
+    }
 
     const ai = assignInterval(a), bi = pick(b, APPLY_COLS.interval);
     set('interval', ai, bi, norm(ai) !== '' && intervalKey(ai) === intervalKey(bi));

@@ -44,7 +44,7 @@ function showError(msg) {
 function run() {
   if (!state.assign || !state.apply) return;
   try {
-    state.result = compare(state.assign, state.apply, { langAlias: $('#opt-lang-alias').checked });
+    state.result = compare(state.assign, state.apply);
     render();
     $('#btn-export').disabled = false;
   } catch (e) {
@@ -94,32 +94,82 @@ function render() {
   $('#unassigned').hidden = unassigned.length === 0;
 }
 
-function exportXlsx() {
+const FILL = {
+  yellow: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
+  red: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC7CE' } },
+  head: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F3F7' } },
+};
+const RED_FONT = { color: { argb: 'FF9C0006' }, bold: true };
+const BORDER = { top: { style: 'thin', color: { argb: 'FFD0D4DA' } }, bottom: { style: 'thin', color: { argb: 'FFD0D4DA' } },
+  left: { style: 'thin', color: { argb: 'FFD0D4DA' } }, right: { style: 'thin', color: { argb: 'FFD0D4DA' } } };
+
+async function exportXlsx() {
   const { results, unassigned } = state.result;
-  const header = ['배정행', '매칭', '이름(배정)', '이름(신청)', '전화(배정)', '전화(신청)', '이메일(배정)', '이메일(신청)',
-    '화상/전화(배정)', '화상/전화(신청)', '언어(배정)', '언어(신청)', '횟수(배정)', '횟수(신청)', '수업시간(배정)', '희망시간(신청)',
-    '담당강사', '불일치 수', '불일치 항목'];
-  const rows = results.map((r) => {
-    const bad = CHECKS.filter((c) => !r.checks[c.key].ok).map((c) => c.label).join(', ');
-    const v = (k, side) => r.checks[k][side];
-    return [r.assignRow, r.matched ? r.matchedBy : '신청 없음',
-      v('name', 'a'), v('name', 'b'), v('phone', 'a'), v('phone', 'b'), v('email', 'a'), v('email', 'b'),
-      v('mode', 'a'), v('mode', 'b'), v('lang', 'a'), v('lang', 'b'), v('interval', 'a'), v('interval', 'b'),
-      v('time', 'a'), v('time', 'b'), r.teacher, r.mismatchCount, bad];
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('대조결과', { views: [{ state: 'frozen', ySplit: 1 }] });
+
+  // 컬럼 정의: key 는 checks 키, side 는 a(배정)/b(신청)
+  const cols = [
+    { h: '배정행', w: 8 }, { h: '매칭', w: 10 },
+    ...CHECKS.flatMap((c) => [
+      { h: `${c.label}(배정)`, key: c.key, side: 'a', w: c.key === 'email' ? 24 : 16 },
+      { h: `${c.label}(신청)`, key: c.key, side: 'b', w: c.key === 'email' || c.key === 'time' ? 24 : 16, apply: true },
+    ]),
+    { h: '담당강사', w: 14 }, { h: '불일치 수', w: 9 }, { h: '불일치 항목', w: 28 },
+  ];
+  ws.columns = cols.map((c) => ({ width: c.w }));
+
+  const head = ws.addRow(cols.map((c) => c.h));
+  head.eachCell((cell, i) => {
+    cell.fill = cols[i - 1].apply ? FILL.yellow : FILL.head;   // (신청) 제목은 노란색
+    cell.font = { bold: true };
+    cell.border = BORDER;
+    cell.alignment = { vertical: 'middle' };
   });
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([header, ...rows]), '대조결과');
-  if (unassigned.length) {
-    const uh = ['신청행', '이름', '전화번호', '이메일', '언어', '화상/전화', '횟수', '희망시간', '상태'];
-    const ur = unassigned.map((u) => [u.applyRow, u.name, u.phone, u.email, u.lang, u.mode, u.interval, u.wish, u.status]);
-    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([uh, ...ur]), '배정없음');
+
+  for (const r of results) {
+    const bad = CHECKS.filter((c) => !r.checks[c.key].ok).map((c) => c.label).join(', ');
+    const row = ws.addRow(cols.map((c) => {
+      if (c.key) return r.checks[c.key][c.side];
+      switch (c.h) {
+        case '배정행': return r.assignRow;
+        case '매칭': return r.matched ? r.matchedBy : '신청 없음';
+        case '담당강사': return r.teacher;
+        case '불일치 수': return r.mismatchCount;
+        default: return bad;
+      }
+    }));
+    row.eachCell({ includeEmpty: true }, (cell, i) => {
+      cell.border = BORDER;
+      const c = cols[i - 1];
+      const isBad = c.key ? !r.checks[c.key].ok : (c.h === '불일치 수' || c.h === '불일치 항목') && r.mismatchCount > 0;
+      if (isBad) { cell.fill = FILL.red; cell.font = RED_FONT; }   // 불일치: 배정+신청 칸 모두 빨간색
+    });
   }
+  ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
+
+  if (unassigned.length) {
+    const us = wb.addWorksheet('배정없음');
+    const uh = ['신청행', '이름', '전화번호', '이메일', '언어', '화상/전화', '횟수', '희망시간', '상태'];
+    us.columns = [8, 12, 16, 24, 12, 10, 12, 24, 10].map((w) => ({ width: w }));
+    const h = us.addRow(uh);
+    h.eachCell((cell) => { cell.fill = FILL.yellow; cell.font = { bold: true }; cell.border = BORDER; });
+    for (const u of unassigned) {
+      const row = us.addRow([u.applyRow, u.name, u.phone, u.email, u.lang, u.mode, u.interval, u.wish, u.status]);
+      row.eachCell({ includeEmpty: true }, (cell) => { cell.border = BORDER; });
+    }
+  }
+
+  const buf = await wb.xlsx.writeBuffer();
   const d = new Date(), pad = (n) => String(n).padStart(2, '0');
-  XLSX.writeFile(wb, `배정검토_대조결과_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.xlsx`);
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+  a.download = `배정검토_대조결과_${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.xlsx`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 wireDrop('#drop-assign', '#file-assign', 'assign');
 wireDrop('#drop-apply', '#file-apply', 'apply');
-$('#opt-lang-alias').addEventListener('change', run);
 $('#opt-only-bad').addEventListener('change', () => state.result && render());
 $('#btn-export').addEventListener('click', exportXlsx);
