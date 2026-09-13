@@ -26,5 +26,5 @@ cd site && npm run dev   # http://localhost:5173
 ## 배포
 
 ```sh
-cd site && vercel deploy --prod
+`main` 브랜치에 푸시하면 Vercel이 자동 배포합니다 (Root Directory: `site`). 수동 배포: `cd site && vercel deploy --prod`
 ```
