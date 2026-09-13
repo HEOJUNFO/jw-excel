@@ -1,0 +1,17 @@
+# 개인정보 포함 엑셀 — 절대 커밋 금지
+*.xls
+*.xlsx
+*.csv
+
+# 로컬 전용 에이전트 설정/문서
+.agents/
+.claude/
+agent/
+docs/
+skills-lock.json
+
+# Vercel / env
+.vercel
+.env*
+node_modules/
+.DS_Store

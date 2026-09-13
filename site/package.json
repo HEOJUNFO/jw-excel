@@ -1,0 +1,6 @@
+{
+  "name": "jw-excel-compare",
+  "private": true,
+  "type": "module",
+  "scripts": { "dev": "npx -y serve -l 5173 ." }
+}

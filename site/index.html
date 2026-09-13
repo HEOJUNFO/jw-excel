@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>배정검토 비교</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="vendor/xlsx.full.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>배정검토 비교</h1>
+      <p class="sub">배정검토 파일과 수강신청자 리스트를 올리면 이름·전화번호·이메일·화상/전화·언어·횟수·수업시간을 대조해 불일치만 <span class="red">빨간색</span>으로 표시합니다. 파일은 브라우저 안에서만 처리되고 서버로 전송되지 않습니다.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="uploads">
+      <label class="drop" id="drop-assign">
+        <input type="file" id="file-assign" accept=".xls,.xlsx,.csv,.htm,.html" hidden />
+        <span class="drop-step">1</span>
+        <span class="drop-title">배정검토 파일</span>
+        <span class="drop-hint">클릭하거나 파일을 끌어다 놓으세요 (.xls / .xlsx)</span>
+        <span class="drop-file" data-empty="선택된 파일 없음"></span>
+      </label>
+      <label class="drop" id="drop-apply">
+        <input type="file" id="file-apply" accept=".xls,.xlsx,.csv,.htm,.html" hidden />
+        <span class="drop-step">2</span>
+        <span class="drop-title">수강신청자 리스트</span>
+        <span class="drop-hint">클릭하거나 파일을 끌어다 놓으세요 (.xls / .xlsx)</span>
+        <span class="drop-file" data-empty="선택된 파일 없음"></span>
+      </label>
+    </section>
+
+    <section class="controls">
+      <label class="opt">
+        <input type="checkbox" id="opt-lang-alias" />
+        <span>영어(원어민)과 영어(북미)를 같은 언어로 취급</span>
+      </label>
+      <label class="opt">
+        <input type="checkbox" id="opt-only-bad" />
+        <span>불일치 행만 보기</span>
+      </label>
+      <div class="spacer"></div>
+      <button id="btn-export" class="btn" disabled>결과 엑셀 다운로드</button>
+    </section>
+
+    <p id="error" class="error" hidden></p>
+
+    <section id="summary" class="summary" hidden></section>
+
+    <section id="result" hidden>
+      <h2>배정검토 대조 결과 <span class="muted">(배정검토 기준, 한 행 = 배정 1건)</span></h2>
+      <div class="table-wrap">
+        <table id="table">
+          <thead>
+            <tr>
+              <th rowspan="2">#</th>
+              <th rowspan="2">배정행</th>
+              <th rowspan="2">매칭</th>
+              <th colspan="2">1. 이름</th>
+              <th colspan="2">2. 전화번호</th>
+              <th colspan="2">3. 이메일</th>
+              <th colspan="2">4. 화상/전화</th>
+              <th colspan="2">5. 언어</th>
+              <th colspan="2">6. 횟수</th>
+              <th colspan="2">7. 수업시간</th>
+              <th rowspan="2">담당강사</th>
+              <th rowspan="2">불일치</th>
+            </tr>
+            <tr>
+              <th>배정</th><th>신청</th>
+              <th>배정</th><th>신청</th>
+              <th>배정</th><th>신청</th>
+              <th>배정</th><th>신청</th>
+              <th>배정</th><th>신청</th>
+              <th>배정</th><th>신청</th>
+              <th>배정 수업시간</th><th>신청 희망시간 1 / 2</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="unassigned" hidden>
+      <h2>신청은 했지만 배정검토에 없는 사람</h2>
+      <div class="table-wrap">
+        <table id="table-unassigned">
+          <thead>
+            <tr><th>#</th><th>신청행</th><th>이름</th><th>전화번호</th><th>이메일</th><th>언어</th><th>화상/전화</th><th>횟수</th><th>희망시간 1 / 2</th><th>상태</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap foot">
+    <details>
+      <summary>비교 기준</summary>
+      <ul>
+        <li><b>매칭</b>: 배정검토 <code>K-Name</code> ↔ 수강신청 <code>이름</code>. 동명이인이면 전화번호로 좁히고, 이름으로 못 찾으면 전화번호 → 이메일 순으로 찾습니다.</li>
+        <li><b>전화번호</b>: 숫자만 비교 (<code>Mobile</code> ↔ <code>휴대전화번호</code>). <b>이메일</b>: 대소문자·공백 무시.</li>
+        <li><b>횟수</b>: 배정 <code>Interval</code> ↔ 신청 <code>횟수</code>. "주2회15분" 처럼 회/분 숫자만 비교.</li>
+        <li><b>수업시간</b>: 배정 <code>수업시간</code>(예 06:30~06:40)이 신청 <code>희망시간1</code> 또는 <code>희망시간2</code> 범위 안에 완전히 들어가면 일치.</li>
+        <li>수강신청에 없는 배정 행은 전 항목 빨간색 + "신청 없음"으로 표시.</li>
+      </ul>
+    </details>
+  </footer>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
