@@ -1,7 +1,11 @@
 // 배정검토 vs 수강신청 비교 로직. 브라우저/Node 양쪽에서 쓰는 순수 모듈 (DOM 의존 없음).
 
 // 헤더 후보: 파일마다 컬럼명이 조금씩 달라도 잡히도록 여러 이름을 둔다.
+// 사번 후보. 배정검토의 'ID' 컬럼은 이메일이라 여기 넣지 않는다.
+const EMP_ID_COLS = ['사번', '사원번호', '사원 번호', '직원번호', 'Employee ID', 'EmployeeID', 'Emp No', 'EmpNo'];
+
 export const ASSIGN_COLS = {
+  empId: EMP_ID_COLS,
   name: ['K-Name', '이름', '성명', 'Name'],
   phone: ['Mobile', '휴대전화번호', '휴대폰', '1st Call'],
   phoneAlt: ['1st Call', '2st Call', '2nd Call'],
@@ -17,6 +21,7 @@ export const ASSIGN_COLS = {
 };
 
 export const APPLY_COLS = {
+  empId: EMP_ID_COLS,
   name: ['이름', '성명', 'K-Name', 'Name'],
   phone: ['휴대전화번호', '휴대폰', 'Mobile', '전화번호'],
   email: ['이메일', 'Email', 'E-mail'],
@@ -42,6 +47,8 @@ export const CHECKS = [
 const clean = (v) => (v == null ? '' : String(v)).replace(/\s+/g, ' ').trim();
 const norm = (v) => clean(v).replace(/\s+/g, '').toLowerCase();
 const digits = (v) => clean(v).replace(/\D/g, '');
+// 사번 키: 공백/대소문자 무시, 숫자만이면 앞자리 0 무시 (엑셀이 숫자로 읽으면 0이 사라지므로)
+const empKey = (v) => { const n = norm(v); return /^\d+$/.test(n) ? n.replace(/^0+(?=\d)/, '') : n; };
 
 // 시트(2차원 배열)에서 헤더 행을 찾는다: 후보 컬럼명이 가장 많이 들어있는 행.
 export function findHeaderRow(rows, colSpec) {
@@ -127,24 +134,29 @@ function assignInterval(a) {
   return w && m ? `주${w}회${m}분` : '';
 }
 
-// 수강신청 레코드 인덱스: 이름 / 전화 / 이메일로 찾을 수 있게
+// 수강신청 레코드 인덱스: 사번 / 이름 / 전화 / 이메일로 찾을 수 있게
 function buildIndex(applies) {
-  const byName = new Map(), byPhone = new Map(), byEmail = new Map();
+  const byEmpId = new Map(), byName = new Map(), byPhone = new Map(), byEmail = new Map();
   const add = (map, k, r) => { if (!k) return; if (!map.has(k)) map.set(k, []); map.get(k).push(r); };
   for (const r of applies) {
+    add(byEmpId, empKey(pick(r, APPLY_COLS.empId)), r);
     add(byName, norm(pick(r, APPLY_COLS.name)), r);
     add(byPhone, digits(pick(r, APPLY_COLS.phone)), r);
     add(byEmail, norm(pick(r, APPLY_COLS.email)), r);
   }
-  return { byName, byPhone, byEmail };
+  return { byEmpId, byName, byPhone, byEmail };
 }
 
-// 매칭: 이름 → (동명이인이면 전화로 좁힘) → 전화 → 이메일 순.
+// 매칭: 사번(양쪽에 값이 있을 때만) → 이름 → (동명이인이면 전화로 좁힘) → 전화 → 이메일 순.
+// 사번 컬럼이 없거나 비어 있으면 자연히 이름부터 시작해 기존과 동일하게 동작한다.
 function matchApply(a, idx) {
+  const empId = empKey(pick(a, ASSIGN_COLS.empId));
+  let c = idx.byEmpId.get(empId) || [];
+  if (empId && c.length) return { rec: c[0], by: '사번', ambiguous: c.length > 1 };
   const name = norm(pick(a, ASSIGN_COLS.name));
   const phone = digits(pick(a, ASSIGN_COLS.phone)) || digits(pick(a, ASSIGN_COLS.phoneAlt));
   const email = norm(pick(a, ASSIGN_COLS.email));
-  let c = idx.byName.get(name) || [];
+  c = idx.byName.get(name) || [];
   if (c.length > 1 && phone) {
     const narrowed = c.filter((r) => digits(pick(r, APPLY_COLS.phone)) === phone);
     if (narrowed.length) c = narrowed;
