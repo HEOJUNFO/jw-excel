@@ -77,3 +77,55 @@ export function pdfFileName(name) {
   const base = String(name ?? '').trim().replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]/g, '_');
   return (base || 'qr-poster') + '.pdf';
 }
+
+// ---------- QR 위치 편집 ----------
+// 사용자가 옮긴 QR 자리는 정사각형 { x, y, size } 비율로 둔다.
+// x·size 는 포스터 가로, y 는 세로 대비라서 기본 이미지를 바꿔도 같은 비율 자리에 온다.
+const QR_INSET = 0.03;      // 기본 위치: 흰 칸 가장자리(둥근 모서리)에서 살짝 띄움
+const MIN_SIZE = 20;        // 편집 시 최소 한 변(이미지 px)
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+export const squareToPx = (sq, box) => ({ x: sq.x * box.width, y: sq.y * box.height, size: sq.size * box.width });
+export const pxToSquare = (px, box) => ({ x: px.x / box.width, y: px.y / box.height, size: px.size / box.width });
+
+export function defaultSquares() {
+  const base = { x: 0, y: 0, width: BASE_W, height: BASE_H };
+  return Object.fromEntries(Object.entries(SLOTS).map(([key, slot]) => {
+    const { x, y, size } = fitSquare(slotRect(slot, base), QR_INSET);
+    return [key, pxToSquare({ x, y, size }, base)];
+  }));
+}
+
+// 저장된 비율을 다른 비율의 이미지에 쓰면 밖으로 나갈 수 있어 포스터 안으로 당긴다.
+export function clampSquare(sq, box) {
+  const size = Math.min(sq.size, box.width, box.height);
+  return { x: clamp(sq.x, 0, box.width - size), y: clamp(sq.y, 0, box.height - size), size };
+}
+
+// px 정사각형을 (dx, dy) 만큼 옮기되 포스터 밖으로는 못 나가게.
+export function moveSquare(sq, dx, dy, box) {
+  return {
+    x: clamp(sq.x + dx, 0, box.width - sq.size),
+    y: clamp(sq.y + dy, 0, box.height - sq.size),
+    size: sq.size,
+  };
+}
+
+// corner('nw'|'ne'|'sw'|'se') 를 끌어 크기 조절. 반대쪽 모서리는 고정, 정사각형 유지.
+export function resizeSquare(sq, corner, dx, dy, box) {
+  const left = corner[1] === 'w', top = corner[0] === 'n';
+  const ax = left ? sq.x + sq.size : sq.x;   // 고정 모서리
+  const ay = top ? sq.y + sq.size : sq.y;
+  const delta = ((left ? -dx : dx) + (top ? -dy : dy)) / 2;
+  const room = Math.min(left ? ax : box.width - ax, top ? ay : box.height - ay);
+  const size = clamp(sq.size + delta, Math.min(MIN_SIZE, room), room);
+  return { x: left ? ax - size : ax, y: top ? ay - size : ay, size };
+}
+
+// localStorage 에서 읽은 값 검증. 칸마다 이상하면 그 칸만 기본 위치로.
+export function sanitizeSquares(saved) {
+  const defaults = defaultSquares();
+  const ok = (s) => s && [s.x, s.y, s.size].every(Number.isFinite)
+    && s.x >= 0 && s.y >= 0 && s.size > 0 && s.x + s.size <= 1 && s.y < 1;
+  return Object.fromEntries(Object.keys(defaults).map((k) => [k, ok(saved?.[k]) ? { x: saved[k].x, y: saved[k].y, size: saved[k].size } : defaults[k]]));
+}

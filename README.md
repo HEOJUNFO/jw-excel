@@ -25,7 +25,8 @@
 - 칸마다 **링크**(QR 자동 생성, 한글 링크 가능) 또는 **QR 이미지**(그대로 삽입) 중 선택
 - 기본 이미지는 교체 가능. 마지막에 올린 이미지는 브라우저(IndexedDB)에 남아 다음에 그대로 씀
 - 폰 스크린샷의 위아래 검은 상태바는 자동으로 잘라냄
-- QR 칸 위치는 `site/poster.js` 의 `SLOTS` (포스터 영역 대비 비율)에 고정. 포스터 디자인이 바뀌어 칸 위치가 달라지면 여기만 고치면 됨
+- **위치 편집**: 미리보기 위 [위치 편집] → 박스를 끌어 옮기고 모서리로 크기 조절(정사각형), 방향키 1px·Shift 10px(이미지 기준), [기본 위치로]로 복귀. 바꾼 위치는 브라우저(localStorage)에 포스터 대비 비율로 저장돼 기본 이미지를 바꿔도 유지
+- 기본 위치는 `site/poster.js` 의 `SLOTS` (샘플 포스터의 흰 칸)
 - 링크 QR은 PDF에 벡터로 그려서 인쇄·확대해도 선명함
 - 라이브러리: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [jsPDF](https://github.com/parallax/jsPDF) (`site/vendor/`)
 

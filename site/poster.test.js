@@ -1,6 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { SLOTS, findContentBox, slotRect, fitSquare, normalizeLink, qrRuns, pdfFileName } from './poster.js';
+import {
+  SLOTS, findContentBox, slotRect, fitSquare, normalizeLink, qrRuns, pdfFileName,
+  defaultSquares, squareToPx, pxToSquare, moveSquare, resizeSquare, sanitizeSquares, clampSquare,
+} from './poster.js';
 
 // width×height RGBA 이미지. rowColor(y) 가 [r,g,b] 를 돌려준다.
 const img = (width, height, rowColor) => {
@@ -92,4 +95,61 @@ test('PDF 파일명: 금지 문자 제거, 비면 기본값, .pdf 한 번만', (
   assert.equal(pdfFileName('삼성전자'), '삼성전자.pdf');
   assert.equal(pdfFileName('a/b:c*?.pdf'), 'a_b_c__.pdf');
   assert.equal(pdfFileName('  '), 'qr-poster.pdf');
+});
+
+// ---------- QR 위치 편집 ----------
+const BOX = { width: 1170, height: 2240 };
+const round = (o) => Object.fromEntries(Object.entries(o).map(([k, v]) => [k, Math.round(v * 10) / 10]));
+
+test('기본 위치 = 흰 칸 안쪽 정사각형 (기존 고정 좌표와 동일)', () => {
+  const d = defaultSquares();
+  assert.deepEqual(round(squareToPx(d.enroll, BOX)), { x: 409.6, y: 365.6, size: 112.8 });
+  assert.deepEqual(round(squareToPx(d.level, BOX)), { x: 669.6, y: 365.6, size: 112.8 });
+});
+
+test('px ↔ 비율 왕복', () => {
+  const px = { x: 100, y: 200, size: 50 };
+  assert.deepEqual(round(squareToPx(pxToSquare(px, BOX), BOX)), px);
+});
+
+test('비율은 포스터 크기를 따라간다 (크기는 가로 기준)', () => {
+  const sq = pxToSquare({ x: 100, y: 200, size: 50 }, BOX);
+  assert.deepEqual(round(squareToPx(sq, { width: 2340, height: 4480 })), { x: 200, y: 400, size: 100 });
+});
+
+test('이동: 포스터 밖으로 나가지 않게 막는다', () => {
+  const sq = { x: 100, y: 100, size: 50 };
+  assert.deepEqual(moveSquare(sq, 10, -5, BOX), { x: 110, y: 95, size: 50 });
+  assert.deepEqual(moveSquare(sq, -500, -500, BOX), { x: 0, y: 0, size: 50 });
+  assert.deepEqual(moveSquare(sq, 5000, 5000, BOX), { x: 1120, y: 2190, size: 50 });
+});
+
+test('크기: 반대쪽 모서리를 고정하고 정사각형으로 늘린다', () => {
+  const sq = { x: 100, y: 100, size: 50 };
+  assert.deepEqual(resizeSquare(sq, 'se', 10, 10, BOX), { x: 100, y: 100, size: 60 });
+  assert.deepEqual(resizeSquare(sq, 'nw', -10, -10, BOX), { x: 90, y: 90, size: 60 });
+  assert.deepEqual(resizeSquare(sq, 'ne', 10, -10, BOX), { x: 100, y: 90, size: 60 });
+  assert.deepEqual(resizeSquare(sq, 'sw', -10, 10, BOX), { x: 90, y: 100, size: 60 });
+});
+
+test('크기: 최소 크기와 포스터 경계를 넘지 않는다', () => {
+  const sq = { x: 100, y: 100, size: 50 };
+  assert.equal(resizeSquare(sq, 'se', -100, -100, BOX).size, 20);
+  assert.deepEqual(resizeSquare(sq, 'nw', -500, -500, BOX), { x: 0, y: 0, size: 150 });
+  assert.equal(resizeSquare({ x: 1100, y: 100, size: 50 }, 'se', 100, 100, BOX).size, 70);
+});
+
+test('저장된 위치 검증: 이상한 값은 기본 위치로', () => {
+  const d = defaultSquares();
+  assert.deepEqual(sanitizeSquares(null), d);
+  assert.deepEqual(sanitizeSquares({ enroll: { x: 'a', y: 0, size: 0.1 } }), d);
+  const ok = { enroll: { x: 0.1, y: 0.2, size: 0.1 }, level: { x: 2, y: 0, size: 0.1 } };
+  assert.deepEqual(sanitizeSquares(ok), { enroll: ok.enroll, level: d.level });
+});
+
+test('비율이 다른 이미지로 바꿔 칸이 밖으로 나가면 포스터 안으로 당긴다', () => {
+  const wide = { width: 1000, height: 300 };
+  assert.deepEqual(clampSquare({ x: 100, y: 280, size: 50 }, wide), { x: 100, y: 250, size: 50 });
+  assert.deepEqual(clampSquare({ x: 900, y: 0, size: 400 }, wide), { x: 700, y: 0, size: 300 });
+  assert.deepEqual(clampSquare({ x: 10, y: 20, size: 30 }, wide), { x: 10, y: 20, size: 30 });
 });
