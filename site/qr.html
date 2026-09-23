@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>QR 포스터 PDF</title>
+  <meta name="robots" content="noindex" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="vendor/qrcode.js"></script>
+  <script src="vendor/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <nav class="nav"><a href="./">배정검토 비교</a><a href="qr.html" aria-current="page">QR 포스터 PDF</a></nav>
+      <h1>QR 포스터 PDF</h1>
+      <p class="sub">기본 이미지의 수강신청·레벨테스트 칸에 QR을 넣어 PDF로 저장합니다. 칸마다 링크를 넣으면 QR을 만들어 넣고, QR 이미지를 올리면 그대로 넣습니다. 파일은 브라우저 안에서만 처리되고 서버로 전송되지 않습니다.</p>
+    </div>
+  </header>
+
+  <main class="wrap qr-layout">
+    <section class="qr-form">
+      <label class="drop" id="drop-base">
+        <input type="file" id="file-base" accept="image/*" hidden />
+        <span class="drop-step">1</span>
+        <span class="drop-title">기본 이미지</span>
+        <span class="drop-hint">클릭하거나 이미지를 끌어다 놓으세요. 바꾸지 않으면 지난번 이미지를 그대로 씁니다.</span>
+        <span class="drop-file" data-empty="선택된 이미지 없음"></span>
+      </label>
+
+      <div class="slot-card" data-slot="enroll">
+        <div class="slot-head">
+          <span class="drop-step">2</span>
+          <span class="drop-title">수강신청 QR</span>
+          <div class="seg" role="group" aria-label="넣는 방식">
+            <button type="button" data-mode="link" class="on" aria-pressed="true">링크</button>
+            <button type="button" data-mode="image" aria-pressed="false">이미지</button>
+          </div>
+        </div>
+        <input type="text" class="slot-link" placeholder="https://… 링크를 붙여넣으세요" autocomplete="off" spellcheck="false" />
+        <label class="drop slot-drop" hidden>
+          <input type="file" class="slot-file" accept="image/*" hidden />
+          <span class="drop-hint">QR 이미지를 클릭해 고르거나 끌어다 놓으세요</span>
+          <span class="drop-file" data-empty="선택된 이미지 없음"></span>
+        </label>
+        <p class="slot-status"></p>
+      </div>
+
+      <div class="slot-card" data-slot="level">
+        <div class="slot-head">
+          <span class="drop-step">3</span>
+          <span class="drop-title">레벨테스트 QR</span>
+          <div class="seg" role="group" aria-label="넣는 방식">
+            <button type="button" data-mode="link" class="on" aria-pressed="true">링크</button>
+            <button type="button" data-mode="image" aria-pressed="false">이미지</button>
+          </div>
+        </div>
+        <input type="text" class="slot-link" placeholder="https://… 링크를 붙여넣으세요" autocomplete="off" spellcheck="false" />
+        <label class="drop slot-drop" hidden>
+          <input type="file" class="slot-file" accept="image/*" hidden />
+          <span class="drop-hint">QR 이미지를 클릭해 고르거나 끌어다 놓으세요</span>
+          <span class="drop-file" data-empty="선택된 이미지 없음"></span>
+        </label>
+        <p class="slot-status"></p>
+      </div>
+
+      <div class="qr-save">
+        <input type="text" id="pdf-name" placeholder="파일 이름 (예: 삼성전자)" autocomplete="off" />
+        <button id="btn-pdf" class="btn" disabled>PDF 저장</button>
+      </div>
+
+      <p id="error" class="error" hidden></p>
+    </section>
+
+    <section class="qr-preview">
+      <canvas id="preview" hidden></canvas>
+      <p id="preview-empty" class="preview-empty">기본 이미지를 올리면 여기에 미리보기가 나옵니다.</p>
+    </section>
+  </main>
+
+  <script type="module" src="qr.js"></script>
+</body>
+</html>

@@ -18,10 +18,22 @@
 | 횟수 | Interval | 횟수 | `주N회M분` 숫자 비교 |
 | 수업시간 | 수업시간 | 희망시간1/2 | 둘 중 하나 범위 안에 포함되면 일치 |
 
+## QR 포스터 PDF (`qr.html`)
+
+기본 포스터 이미지의 **수강신청 / 레벨테스트** 칸에 QR을 넣어 PDF 1장으로 저장합니다.
+
+- 칸마다 **링크**(QR 자동 생성, 한글 링크 가능) 또는 **QR 이미지**(그대로 삽입) 중 선택
+- 기본 이미지는 교체 가능. 마지막에 올린 이미지는 브라우저(IndexedDB)에 남아 다음에 그대로 씀
+- 폰 스크린샷의 위아래 검은 상태바는 자동으로 잘라냄
+- QR 칸 위치는 `site/poster.js` 의 `SLOTS` (포스터 영역 대비 비율)에 고정. 포스터 디자인이 바뀌어 칸 위치가 달라지면 여기만 고치면 됨
+- 링크 QR은 PDF에 벡터로 그려서 인쇄·확대해도 선명함
+- 라이브러리: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [jsPDF](https://github.com/parallax/jsPDF) (`site/vendor/`)
+
 ## 로컬 실행
 
 ```sh
 cd site && npm run dev   # http://localhost:5173
+cd site && npm test      # 순수 로직 테스트 (node --test)
 ```
 
 ## 배포

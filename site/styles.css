@@ -12,12 +12,16 @@
   --amber-bg: #fff4d6;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--text);
   font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", "Malgun Gothic", sans-serif; }
 .wrap { max-width: 1400px; margin: 0 auto; padding: 0 20px; }
 .top { background: var(--panel); border-bottom: 1px solid var(--line); padding: 24px 0 18px; }
 h1 { margin: 0 0 6px; font-size: 22px; letter-spacing: -0.01em; }
 h2 { font-size: 16px; margin: 28px 0 10px; }
+.nav { display: flex; gap: 14px; margin-bottom: 10px; font-size: 13px; }
+.nav a { color: var(--muted); text-decoration: none; font-weight: 600; }
+.nav a:hover, .nav a[aria-current] { color: var(--accent); }
 .sub { margin: 0; color: var(--muted); max-width: 820px; }
 .red { color: var(--red); font-weight: 600; }
 .muted { color: var(--muted); font-weight: 400; font-size: 13px; }
@@ -77,6 +81,30 @@ tr.row-ok td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 .foot ul { padding-left: 18px; }
 .foot code { background: #eef1f6; padding: 0 4px; border-radius: 4px; color: #3b4450; }
 
+/* QR 포스터 PDF */
+.qr-layout { display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 24px; margin-top: 22px; margin-bottom: 60px; align-items: start; }
+.qr-form { display: flex; flex-direction: column; gap: 14px; }
+.slot-card { display: flex; flex-direction: column; gap: 10px; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+.slot-head { display: flex; align-items: center; gap: 10px; }
+.slot-head .drop-step { position: static; }
+.slot-head .drop-title { flex: 1; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: var(--panel); padding: 5px 12px; font: inherit; font-size: 13px; color: var(--muted); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button.on { background: var(--accent); color: #fff; font-weight: 600; }
+.slot-link, #pdf-name { width: 100%; padding: 9px 11px; border: 1px solid #c9cfd8; border-radius: 8px; font: inherit; background: #fff; color: var(--text); }
+.slot-link:focus, #pdf-name:focus { outline: 2px solid #c8d5f7; border-color: var(--accent); }
+.slot-drop { padding: 12px 14px; }
+.slot-status { margin: 0; font-size: 12px; color: var(--muted); word-break: break-all; }
+.slot-status.bad { color: var(--red); font-weight: 600; }
+.qr-save { display: flex; gap: 10px; }
+.qr-save .btn { flex: none; padding: 9px 18px; font-size: 14px; }
+.qr-preview { position: sticky; top: 16px; display: flex; justify-content: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+#preview { display: block; max-width: 100%; max-height: calc(100vh - 64px); height: auto; width: auto; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.preview-empty { margin: 80px 0; color: var(--muted); text-align: center; }
+
 @media (max-width: 760px) {
   .uploads { grid-template-columns: 1fr; }
+  .qr-layout { grid-template-columns: 1fr; }
+  .qr-preview { position: static; }
 }
