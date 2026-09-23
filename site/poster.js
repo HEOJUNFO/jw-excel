@@ -59,6 +59,16 @@ export function normalizeLink(input) {
   return s;
 }
 
+// PDF 에서 QR 을 눌렀을 때 열 주소. 웹·메일·전화만 허용하고, PDF 링크는 ASCII 만 되므로 한글 등은 인코딩.
+// 링크가 아닌 텍스트면 '' (클릭 영역을 만들지 않음).
+const PDF_LINK_SCHEMES = ['http:', 'https:', 'mailto:', 'tel:'];
+export function pdfLinkUrl(text) {
+  try {
+    const url = new URL(text);
+    return PDF_LINK_SCHEMES.includes(url.protocol) ? url.href : '';
+  } catch { return ''; }
+}
+
 // 검은 모듈을 행별 연속 구간으로 합친다 (PDF 에 사각형 수를 줄여 그리기 위함).
 export function qrRuns(count, isDark) {
   const runs = [];

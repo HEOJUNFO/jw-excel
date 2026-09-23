@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  SLOTS, findContentBox, slotRect, fitSquare, normalizeLink, qrRuns, pdfFileName,
+  SLOTS, findContentBox, slotRect, fitSquare, normalizeLink, pdfLinkUrl, qrRuns, pdfFileName,
   defaultSquares, squareToPx, pxToSquare, moveSquare, resizeSquare, sanitizeSquares, clampSquare,
 } from './poster.js';
 
@@ -78,6 +78,16 @@ test('링크 정리: 이메일·숫자는 도메인으로 보지 않는다', () 
   assert.equal(normalizeLink('user@a.com'), 'user@a.com');
   assert.equal(normalizeLink('010.1234'), '010.1234');
   assert.equal(normalizeLink('a.com?x=1'), 'https://a.com?x=1');
+});
+
+test('PDF 클릭 링크: 웹·메일·전화 주소만, 한글은 퍼센트 인코딩', () => {
+  assert.equal(pdfLinkUrl('https://a.com/x'), 'https://a.com/x');
+  assert.equal(pdfLinkUrl('https://www.a.com/신청'), 'https://www.a.com/%EC%8B%A0%EC%B2%AD');
+  assert.equal(pdfLinkUrl('mailto:user@a.com'), 'mailto:user@a.com');
+  assert.equal(pdfLinkUrl('tel:010-1234-5678'), 'tel:010-1234-5678');
+  assert.equal(pdfLinkUrl('그냥 텍스트'), '');
+  assert.equal(pdfLinkUrl('javascript:alert(1)'), '');
+  assert.equal(pdfLinkUrl(''), '');
 });
 
 test('QR 모듈을 행 단위 연속 구간으로 합친다', () => {

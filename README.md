@@ -28,6 +28,7 @@
 - **위치 편집**: 미리보기 위 [위치 편집] → 박스를 끌어 옮기고 모서리로 크기 조절(정사각형), 방향키 1px·Shift 10px(이미지 기준), [기본 위치로]로 복귀. 바꾼 위치는 브라우저(localStorage)에 포스터 대비 비율로 저장돼 기본 이미지를 바꿔도 유지
 - 기본 위치는 `site/poster.js` 의 `SLOTS` (샘플 포스터의 흰 칸)
 - 링크 QR은 PDF에 벡터로 그려서 인쇄·확대해도 선명함
+- 링크 QR은 PDF에서 클릭하면 그 링크로 이동 (웹·메일·전화 주소일 때. QR 이미지로 넣은 칸은 링크를 몰라 클릭 불가)
 - 라이브러리: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator), [jsPDF](https://github.com/parallax/jsPDF) (`site/vendor/`)
 
 ## 로컬 실행

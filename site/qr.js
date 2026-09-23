@@ -1,5 +1,5 @@
 import {
-  SLOTS, findContentBox, normalizeLink, qrRuns, pdfFileName,
+  SLOTS, findContentBox, normalizeLink, pdfLinkUrl, qrRuns, pdfFileName,
   squareToPx, pxToSquare, clampSquare, moveSquare, resizeSquare, defaultSquares, sanitizeSquares,
 } from './poster.js';
 
@@ -93,7 +93,7 @@ function makeQr(text) {
 }
 
 // 칸마다 무엇을 어디에 그릴지 (포스터 영역 기준 px). 미리보기·PDF·상태 표시가 같이 쓴다.
-//   { key, empty:true } | { key, error } | { key, kind:'image', img, rect } | { key, kind:'qr', text, cell, rects }
+//   { key, empty:true } | { key, error } | { key, kind:'image', img, rect } | { key, kind:'qr', text, cell, rects, rect }
 function layoutSlots() {
   if (!state.base) return Object.keys(SLOTS).map((key) => ({ key, empty: true }));
   return Object.keys(SLOTS).map((key) => {
@@ -114,7 +114,7 @@ function layoutSlots() {
     const cell = sq.size / (n + QR_QUIET * 2);
     const x0 = sq.x + cell * QR_QUIET, y0 = sq.y + cell * QR_QUIET;
     const rects = qrRuns(n, (r, c) => qr.isDark(r, c)).map(({ row, col, len }) => ({ x: x0 + col * cell, y: y0 + row * cell, w: len * cell }));
-    return { key, kind: 'qr', text, cell, rects };
+    return { key, kind: 'qr', text, cell, rects, rect: { x: sq.x, y: sq.y, w: sq.size, h: sq.size } };
   });
 }
 
@@ -269,7 +269,12 @@ function savePdf() {
       doc.addImage(png, 'PNG', pt(p.rect.x), pt(p.rect.y), pt(p.rect.w), pt(p.rect.h));
     }
     // 링크 QR 은 벡터 사각형으로 그려 인쇄·확대해도 깨지지 않게 한다.
-    if (p.kind === 'qr') for (const r of p.rects) doc.rect(pt(r.x), pt(r.y), pt(r.w), pt(p.cell) * 1.02, 'F');
+    if (p.kind === 'qr') {
+      for (const r of p.rects) doc.rect(pt(r.x), pt(r.y), pt(r.w), pt(p.cell) * 1.02, 'F');
+      // PDF 뷰어에서 QR 을 누르면 그 링크로 이동
+      const url = pdfLinkUrl(p.text);
+      if (url) doc.link(pt(p.rect.x), pt(p.rect.y), pt(p.rect.w), pt(p.rect.h), { url });
+    }
   }
   doc.save(pdfFileName($('#pdf-name').value));
 }
