@@ -1,6 +1,7 @@
 import {
   SLOTS, findContentBox, normalizeLink, pdfLinkUrl, qrRuns, pdfFileName,
   squareToPx, pxToSquare, clampSquare, moveSquare, resizeSquare, defaultSquares, sanitizeSquares,
+  ZOOM_MIN, ZOOM_MAX, fitWidth, stepZoom, clampZoom, wheelZoom, anchoredScroll,
 } from './poster.js';
 
 // qrcode-generator 기본값은 비ASCII(한글)를 깨뜨리므로 UTF-8 로 바꾼다.
@@ -75,6 +76,7 @@ async function setBase(blob, name) {
   const img = await loadImage(blob);
   if (ticket !== state.baseLoads) return false;
   state.base = { img, name, box: measureBox(img) };
+  zoom = 1; // 새 포스터는 맞춤 크기로 연다
   const drop = $('#drop-base');
   drop.classList.add('loaded');
   $('.drop-file', drop).textContent = name;
@@ -138,10 +140,78 @@ function render() {
     if (p.kind === 'qr') for (const r of p.rects) ctx.fillRect(r.x, r.y, r.w, p.cell + 0.5);
   }
   canvas.hidden = false;
+  viewport.hidden = false;
   $('#preview-empty').hidden = true;
   $('.preview-bar').hidden = false;
+  applyZoom();
   placeBoxes();
 }
+
+// ---------- 미리보기 확대 ----------
+// 오버레이 박스는 % 좌표라 배율과 상관없이 포스터를 따라온다.
+const viewport = $('.viewport'), stage = $('.stage');
+let zoom = 1;
+
+// 배율에 맞춰 미리보기 폭과 확대 버튼 상태를 정한다.
+// 맞춤 크기는 viewport 안쪽(편집 박스 라벨·핸들이 잘리지 않게 둔 padding 제외)에 들어가는 크기.
+function applyZoom() {
+  if (!state.base) return;
+  const cs = getComputedStyle(viewport), px = (v) => parseFloat(cs[v]) || 0;
+  const maxW = viewport.offsetWidth - px('paddingLeft') - px('paddingRight');
+  const maxH = (px('maxHeight') || innerHeight) - px('paddingTop') - px('paddingBottom');
+  $('#preview').style.width = `${Math.round(fitWidth(state.base.box, maxW, maxH) * zoom)}px`;
+  viewport.classList.toggle('zoomed', zoom > ZOOM_MIN);
+  $('#zoom-fit').textContent = `${Math.round(zoom * 100)}%`;
+  $('#zoom-out').disabled = zoom <= ZOOM_MIN;
+  $('#zoom-in').disabled = zoom >= ZOOM_MAX;
+}
+
+// (ax, ay) = 보이는 영역 기준 기준점. 그 아래 지점이 확대 후에도 제자리에 남는다. 기본은 가운데.
+function setZoom(next, ax = viewport.clientWidth / 2, ay = viewport.clientHeight / 2) {
+  next = clampZoom(next);
+  if (!state.base || next === zoom) return;
+  const ratio = next / zoom, bx = stage.offsetLeft, by = stage.offsetTop;
+  const { scrollLeft, scrollTop } = viewport;
+  zoom = next;
+  applyZoom();
+  viewport.scrollLeft = anchoredScroll(scrollLeft, ax, bx, stage.offsetLeft, ratio);
+  viewport.scrollTop = anchoredScroll(scrollTop, ay, by, stage.offsetTop, ratio);
+}
+
+$('#zoom-in').addEventListener('click', () => setZoom(stepZoom(zoom, 1)));
+$('#zoom-out').addEventListener('click', () => setZoom(stepZoom(zoom, -1)));
+$('#zoom-fit').addEventListener('click', () => setZoom(ZOOM_MIN));
+
+// Ctrl+휠 (맥 트랙패드 핀치도 Ctrl+휠로 들어옴): 커서 위치 기준 확대. 그냥 휠은 스크롤.
+viewport.addEventListener('wheel', (e) => {
+  if (!e.ctrlKey || !state.base) return;
+  e.preventDefault();
+  const r = viewport.getBoundingClientRect();
+  setZoom(wheelZoom(zoom, e.deltaY, e.deltaMode), e.clientX - r.left - viewport.clientLeft, e.clientY - r.top - viewport.clientTop);
+}, { passive: false });
+
+// 확대 중 마우스로 포스터 빈 곳을 끌면 화면 이동 (터치는 기본 스크롤로 충분)
+viewport.addEventListener('pointerdown', (e) => {
+  if (zoom <= ZOOM_MIN || e.pointerType !== 'mouse' || e.button !== 0 || !e.target.closest('.stage') || e.target.closest('.qr-box')) return;
+  e.preventDefault();
+  const sx = e.clientX, sy = e.clientY, { scrollLeft, scrollTop } = viewport;
+  const listening = new AbortController();
+  const mine = (ev) => ev.pointerId === e.pointerId;
+  viewport.setPointerCapture(e.pointerId);
+  viewport.classList.add('panning');
+  viewport.addEventListener('pointermove', (ev) => {
+    if (!mine(ev)) return;
+    viewport.scrollLeft = scrollLeft - (ev.clientX - sx);
+    viewport.scrollTop = scrollTop - (ev.clientY - sy);
+  }, { signal: listening.signal });
+  const end = (ev) => { if (!mine(ev)) return; listening.abort(); viewport.classList.remove('panning'); };
+  viewport.addEventListener('pointerup', end, { signal: listening.signal });
+  viewport.addEventListener('pointercancel', end, { signal: listening.signal });
+});
+
+// 맞춤 크기 다시 계산: 칸 폭이 바뀌면 ResizeObserver, 창 높이(max-height 가 vh 기준)가 바뀌면 resize.
+new ResizeObserver(applyZoom).observe(viewport);
+addEventListener('resize', applyZoom);
 
 // ---------- 위치 편집 ----------
 const overlay = $('.overlay');
@@ -185,7 +255,7 @@ overlay.addEventListener('pointerdown', (e) => {
   const el = e.target.closest('.qr-box');
   if (!el || !state.base || e.button !== 0) return;
   e.preventDefault();
-  el.focus();
+  el.focus({ preventScroll: true }); // 확대 중 일부만 보이는 박스를 눌러도 화면이 튀지 않게
   const key = el.dataset.slot, corner = e.target.dataset.corner, { box } = state.base;
   const start = squarePx(key);
   const scale = box.width / overlay.clientWidth; // 화면 px → 이미지 px

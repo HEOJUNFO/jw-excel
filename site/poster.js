@@ -139,3 +139,32 @@ export function sanitizeSquares(saved) {
     && s.x >= 0 && s.y >= 0 && s.size > 0 && s.x + s.size <= 1 && s.y < 1;
   return Object.fromEntries(Object.keys(defaults).map((k) => [k, ok(saved?.[k]) ? { x: saved[k].x, y: saved[k].y, size: saved[k].size } : defaults[k]]));
 }
+
+// ---------- 미리보기 확대 ----------
+// 배율 1 = 미리보기 칸에 딱 맞춘 크기. 그보다 작게는 줄이지 않는다.
+export const ZOOM_LEVELS = [1, 1.5, 2, 3, 4];
+export const ZOOM_MIN = ZOOM_LEVELS[0], ZOOM_MAX = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+
+export const clampZoom = (z) => (Number.isFinite(z) ? clamp(z, ZOOM_MIN, ZOOM_MAX) : ZOOM_MIN);
+
+// 포스터를 가로 maxW·세로 maxH 안에 넣었을 때의 화면 폭(px)
+export const fitWidth = (box, maxW, maxH) => Math.max(1, Math.floor(Math.min(maxW, maxH * box.width / box.height)));
+
+// 버튼: 지금 배율에서 dir(+1/-1) 방향으로 가장 가까운 단계. 끝에서는 그대로.
+export function stepZoom(zoom, dir) {
+  const eps = 1e-6;
+  const next = dir > 0 ? ZOOM_LEVELS.find((z) => z > zoom + eps) : ZOOM_LEVELS.findLast((z) => z < zoom - eps);
+  return next ?? clampZoom(zoom);
+}
+
+// Ctrl+휠·핀치 한 번의 새 배율. deltaMode 1(줄 단위, Firefox)은 px 로 바꾸고,
+// 마우스 휠 한 칸(±100px)이 한 번에 크게 뛰지 않게 ±30px 로 자른다.
+const WHEEL_LINE_PX = 16, WHEEL_MAX_PX = 30, WHEEL_RATE = 0.01;
+export function wheelZoom(zoom, deltaY, deltaMode = 0) {
+  const dy = clamp(deltaMode === 1 ? deltaY * WHEEL_LINE_PX : deltaY, -WHEEL_MAX_PX, WHEEL_MAX_PX);
+  return clampZoom(zoom * Math.exp(-dy * WHEEL_RATE));
+}
+
+// 확대 전후로 anchor(보이는 영역 기준 px) 아래 지점이 제자리에 남는 스크롤 위치.
+// before/after 는 포스터가 스크롤 영역 안에서 시작하는 위치(가운데 정렬 여백), ratio 는 새 배율/옛 배율.
+export const anchoredScroll = (scroll, anchor, before, after, ratio) => (scroll + anchor - before) * ratio + after - anchor;

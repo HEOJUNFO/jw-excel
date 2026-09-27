@@ -77,10 +77,17 @@
         <button type="button" id="btn-edit" class="btn-ghost" aria-pressed="false">위치 편집</button>
         <button type="button" id="btn-reset" class="btn-ghost" hidden>기본 위치로</button>
         <span class="preview-hint" hidden>박스를 끌어 옮기고, 모서리를 끌어 크기를 바꾸세요. 방향키 1px · Shift+방향키 10px</span>
+        <div class="zoom" role="group" aria-label="미리보기 확대">
+          <button type="button" id="zoom-out" class="btn-ghost" aria-label="축소" title="축소">−</button>
+          <button type="button" id="zoom-fit" class="btn-ghost" title="화면에 맞춤">100%</button>
+          <button type="button" id="zoom-in" class="btn-ghost" aria-label="확대" title="확대 (Ctrl+휠·핀치로도 가능)">+</button>
+        </div>
       </div>
-      <div class="stage">
-        <canvas id="preview" hidden></canvas>
-        <div class="overlay" hidden></div>
+      <div class="viewport" hidden>
+        <div class="stage">
+          <canvas id="preview" hidden></canvas>
+          <div class="overlay" hidden></div>
+        </div>
       </div>
       <p id="preview-empty" class="preview-empty">기본 이미지를 올리면 여기에 미리보기가 나옵니다.</p>
     </section>

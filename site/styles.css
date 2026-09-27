@@ -105,8 +105,16 @@ tr.row-ok td:first-child { box-shadow: inset 3px 0 0 var(--green); }
 .btn-ghost { padding: 6px 12px; border-radius: 8px; border: 1px solid #c9cfd8; background: var(--panel); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 .btn-ghost[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
-.stage { position: relative; line-height: 0; max-width: 100%; }
-#preview { display: block; max-width: 100%; max-height: calc(100vh - 110px); height: auto; width: auto; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
+.zoom { display: inline-flex; gap: 4px; margin-left: auto; }
+.zoom .btn-ghost { min-width: 34px; font-variant-numeric: tabular-nums; }
+.zoom .btn-ghost:disabled { opacity: .4; cursor: default; border-color: #c9cfd8; color: var(--text); }
+/* 확대하면 이 안에서 스크롤. 맞춤 크기는 qr.js 가 이 칸의 폭·max-height 에서 padding 을 빼고 계산한다.
+   padding = 편집 박스 라벨(위)·모서리 핸들·포커스 테두리가 포스터 가장자리에서 잘리지 않을 여유. */
+.viewport { position: relative; align-self: stretch; max-height: calc(100vh - 110px); overflow: auto; overscroll-behavior: contain; padding: 26px 14px 14px; }
+.viewport.zoomed .stage { cursor: grab; }
+.viewport.panning .stage, .viewport.panning .qr-box { cursor: grabbing; }
+.stage { position: relative; line-height: 0; width: max-content; margin: 0 auto; }
+#preview { display: block; height: auto; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.12); }
 .overlay { position: absolute; inset: 0; }
 .qr-box { position: absolute; aspect-ratio: 1; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); cursor: move; touch-action: none; outline: none; }
 .qr-box:focus, .qr-box.dragging { border-style: solid; background: color-mix(in srgb, var(--accent) 18%, transparent); }

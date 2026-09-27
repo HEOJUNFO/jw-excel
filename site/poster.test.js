@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   SLOTS, findContentBox, slotRect, fitSquare, normalizeLink, pdfLinkUrl, qrRuns, pdfFileName,
   defaultSquares, squareToPx, pxToSquare, moveSquare, resizeSquare, sanitizeSquares, clampSquare,
+  fitWidth, stepZoom, clampZoom, wheelZoom, anchoredScroll,
 } from './poster.js';
 
 // width×height RGBA 이미지. rowColor(y) 가 [r,g,b] 를 돌려준다.
@@ -162,4 +163,46 @@ test('비율이 다른 이미지로 바꿔 칸이 밖으로 나가면 포스터 
   assert.deepEqual(clampSquare({ x: 100, y: 280, size: 50 }, wide), { x: 100, y: 250, size: 50 });
   assert.deepEqual(clampSquare({ x: 900, y: 0, size: 400 }, wide), { x: 700, y: 0, size: 300 });
   assert.deepEqual(clampSquare({ x: 10, y: 20, size: 30 }, wide), { x: 10, y: 20, size: 30 });
+});
+
+// ---------- 미리보기 확대 ----------
+test('맞춤 폭: 가로·세로 한도 중 작은 쪽에 맞춘다', () => {
+  assert.equal(fitWidth(BOX, 600, 2000), 600);             // 가로가 먼저 참
+  assert.equal(fitWidth(BOX, 600, 896), 468);              // 세로가 먼저 참 (896 × 1170/2240)
+  assert.equal(fitWidth({ width: 100, height: 100 }, 0, 500), 1); // 한도가 0 이어도 최소 1px
+});
+
+test('확대 단계: 버튼은 다음 단계로, 끝에서는 멈춘다', () => {
+  assert.equal(stepZoom(1, 1), 1.5);
+  assert.equal(stepZoom(1.5, 1), 2);
+  assert.equal(stepZoom(4, 1), 4);
+  assert.equal(stepZoom(2, -1), 1.5);
+  assert.equal(stepZoom(1, -1), 1);
+  // 휠로 단계 사이에 있을 때도 가까운 다음 단계로
+  assert.equal(stepZoom(1.7, 1), 2);
+  assert.equal(stepZoom(1.7, -1), 1.5);
+});
+
+test('확대 배율은 맞춤(1) ~ 4 사이', () => {
+  assert.equal(clampZoom(0.5), 1);
+  assert.equal(clampZoom(2.3), 2.3);
+  assert.equal(clampZoom(9), 4);
+  assert.equal(clampZoom(NaN), 1);
+});
+
+test('휠 확대: 위로 굴리면 커지고, 한 번에 너무 크게 뛰지 않는다', () => {
+  assert.ok(wheelZoom(1, -10) > 1);
+  assert.ok(wheelZoom(2, 10) < 2);
+  assert.equal(wheelZoom(2, -100), wheelZoom(2, -30));  // 마우스 휠 한 칸도 핀치 한 번 만큼만
+  assert.equal(wheelZoom(2, 3, 1), wheelZoom(2, 30));    // 줄 단위(Firefox) → px
+  assert.equal(wheelZoom(4, -30), 4);                    // 범위 밖으로는 안 나감
+});
+
+test('확대 기준점: 커서 아래 지점이 확대 후에도 같은 자리에 남는다', () => {
+  // 스크롤 0, 커서가 보이는 영역 100px, 포스터 시작 오프셋 0 → 2배 확대하면 200 지점이 커서 아래로 와야 함
+  assert.equal(anchoredScroll(0, 100, 0, 0, 2), 100);
+  // 이미 스크롤된 상태에서 절반으로 축소
+  assert.equal(anchoredScroll(300, 50, 0, 0, 0.5), 125);
+  // 맞춤 상태에서 가운데 정렬로 포스터가 40px 들어가 있던 경우
+  assert.equal(anchoredScroll(0, 140, 40, 0, 2), 60);
 });
